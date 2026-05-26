@@ -90,15 +90,14 @@ h1{
 
 <script>
 
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRo-SarpignS39lDSaIGsV13WyUJOURcyVaRP_mEqY6XfBxby9WA_XCf5AhXi8OcwHDiP4FLqBwMGKw/pub?gid=363986867&single=true&output=csv";
+const CSV_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vRo-SarpignS39lDSaIGsV13WyUJOURcyVaRP_mEqY6XfBxby9WA_XCf5AhXi8OcwHDiP4FLqBwMGKw/pub?gid=363986867&single=true&output=csv";
 
 function parseCSV(text){
     return text
         .trim()
         .split("\n")
-        .map(row =>
-            row.split(",").map(v => v.replace(/"/g,"").trim())
-        );
+        .map(line => line.split(",").map(x => x.replace(/"/g,"").trim()));
 }
 
 function isToday(date){
@@ -128,8 +127,7 @@ async function loadGames(){
 
             if(!universeId || !name || !start) continue;
 
-            // SAFE DATE PARSE (GitHub Pages safe)
-            const date = new Date(start.replace(" ", "T"));
+            const date = new Date(start.replace(" ","T"));
 
             if(isNaN(date.getTime())) continue;
             if(!isToday(date)) continue;
@@ -150,47 +148,48 @@ async function loadGames(){
         const container = document.getElementById("games");
         container.innerHTML = "";
 
-        // -----------------------------
-        // BATCH THUMBNAILS (FIXED API)
-        // -----------------------------
-        const ids = sorted.map(x => x[0]).join(",");
-
+        // -------------------------------
+        // MEDIA API THUMBNAILS (YOUR URL)
+        // -------------------------------
         let thumbnails = {};
 
-        if(ids){
+        for(const [id] of sorted){
 
             try{
 
-                const thumbRes = await fetch(
-                    `https://thumbnails.roblox.com/v1/games/icons?universeIds=${ids}&size=256x256&isCircular=false`
+                const res = await fetch(
+                    `https://games.roblox.com/v2/games/${id}/media?fetchAllExperienceRelatedMedia=false`
                 );
 
-                const thumbData = await thumbRes.json();
+                const data = await res.json();
 
-                if(thumbData && Array.isArray(thumbData.data)){
+                let img = "";
 
-                    for(const t of thumbData.data){
+                const media = data?.data || [];
 
-                        const id =
-                            String(t.targetId || t.universeId);
+                for(const item of media){
 
-                        const img =
-                            t.imageUrl || null;
+                    if(item.imageUrl){
+                        img = item.imageUrl;
+                        break;
+                    }
 
-                        if(id && img){
-                            thumbnails[id] = img;
-                        }
+                    if(item.assetType === "Image" && item.imageUrl){
+                        img = item.imageUrl;
+                        break;
                     }
                 }
 
+                thumbnails[id] = img;
+
             } catch(e){
-                console.log("Thumbnail error:", e);
+                thumbnails[id] = "";
             }
         }
 
-        // -----------------------------
+        // -------------------------------
         // RENDER
-        // -----------------------------
+        // -------------------------------
         for(let i=0;i<sorted.length;i++){
 
             const [id, g] = sorted[i];
@@ -218,7 +217,7 @@ async function loadGames(){
         }
 
     } catch(err){
-        console.log("Main error:", err);
+        console.log("Error:", err);
     }
 }
 
