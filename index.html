@@ -94,8 +94,9 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRo-SarpignS39l
 
 function parseCSV(text){
     return text
+        .trim()
         .split("\n")
-        .map(r => r.split(",").map(c => c.replace(/"/g,"").trim()));
+        .map(row => row.split(",").map(x => x.replace(/"/g,"").trim()));
 }
 
 function isToday(date){
@@ -107,97 +108,108 @@ function isToday(date){
 
 async function loadGames(){
 
-    const res = await fetch(CSV_URL);
-    const text = await res.text();
+    try{
 
-    const rows = parseCSV(text).slice(1);
+        const res = await fetch(CSV_URL);
+        const text = await res.text();
 
-    const games = {};
+        const rows = parseCSV(text).slice(1);
 
-    for(const r of rows){
+        const games = {};
 
-        const universeId = r[0];
-        const name = r[1];
-        const minutes = Number(r[2]) || 0;
-        const start = r[3];
+        for(const r of rows){
 
-        if(!universeId || !name || !start) continue;
+            const universeId = r[0];
+            const name = r[1];
+            const minutes = Number(r[2]) || 0;
+            const start = r[3];
 
-        const date = new Date(start);
-        if(isNaN(date) || !isToday(date)) continue;
+            if(!universeId || !name || !start) continue;
 
-        if(!games[universeId]){
-            games[universeId] = { name, minutes: 0 };
-        }
+            const date = new Date(start.replace(" ", "T"));
 
-        games[universeId].minutes += minutes;
-    }
+            if(isNaN(date.getTime())) continue;
+            if(!isToday(date)) continue;
 
-    const sorted = Object.entries(games)
-        .sort((a,b)=>b[1].minutes-a[1].minutes);
-
-    const container = document.getElementById("games");
-    container.innerHTML = "";
-
-    // ---- BATCH THUMBNAILS ----
-    const ids = sorted.map(x => x[0]).join(",");
-
-    let thumbnails = {};
-
-    if(ids){
-
-        try{
-            const thumbRes = await fetch(
-                `https://thumbnails.roblox.com/v1/games/icons?universeIds=${ids}&size=256x256&format=Png&isCircular=false`
-            );
-
-            const thumbData = await thumbRes.json();
-
-            if (thumbData && Array.isArray(thumbData.data)) {
-                for (const t of thumbData.data) {
-
-                    const id =
-                        t.targetId ||
-                        t.universeId ||
-                        t.requestId ||
-                        t.id;
-
-                    if (id && t.imageUrl) {
-                        thumbnails[id] = t.imageUrl;
-                    }
-                }
+            if(!games[universeId]){
+                games[universeId] = {
+                    name,
+                    minutes: 0
+                };
             }
 
-        } catch(e){
-            console.log("Thumbnail error:", e);
+            games[universeId].minutes += minutes;
         }
-    }
 
-    // ---- RENDER ----
-    for(let i=0;i<sorted.length;i++){
+        const sorted = Object.entries(games)
+            .sort((a,b)=>b[1].minutes-a[1].minutes);
 
-        const [id, g] = sorted[i];
+        const container = document.getElementById("games");
+        container.innerHTML = "";
 
-        const h = Math.floor(g.minutes / 60);
-        const m = g.minutes % 60;
+        // ---- THUMBNAILS (FIXED API) ----
+        const ids = sorted.map(x => x[0]).join(",");
 
-        const img =
-            thumbnails[id] ||
-            "https://tr.rbxcdn.com/0b7f2c1c1c0b3b7f0c1c1c0b3b7f0c1c/150/150/Image/Png";
+        let thumbnails = {};
 
-        const card = document.createElement("div");
-        card.className = "game-card";
+        if(ids){
 
-        card.innerHTML = `
-            <div class="rank">#${i+1}</div>
-            <img class="thumbnail" src="${img}">
-            <div class="game-info">
-                <div class="game-name">${g.name}</div>
-                <div class="time-played">${h}h ${m}m played</div>
-            </div>
-        `;
+            try{
 
-        container.appendChild(card);
+                const thumbRes = await fetch(
+                    `https://thumbnails.roblox.com/v1/games/icons?universeIds=${ids}&size=256x256&isCircular=false`
+                );
+
+                const thumbData = await thumbRes.json();
+
+                if(thumbData && Array.isArray(thumbData.data)){
+
+                    for(const t of thumbData.data){
+
+                        const id = String(t.targetId || t.universeId);
+
+                        const img = t.imageUrl;
+
+                        if(id && img){
+                            thumbnails[id] = img;
+                        }
+                    }
+                }
+
+            } catch(e){
+                console.log("Thumbnail error:", e);
+            }
+        }
+
+        // ---- RENDER ----
+        for(let i=0;i<sorted.length;i++){
+
+            const [id, g] = sorted[i];
+
+            const h = Math.floor(g.minutes / 60);
+            const m = g.minutes % 60;
+
+            const img =
+                thumbnails[id] ||
+                "https://tr.rbxcdn.com/0b7f2c1c1c0b3b7f0c1c1c0b3b7f0c1c/150/150/Image/Png";
+
+            const card = document.createElement("div");
+            card.className = "game-card";
+
+            card.innerHTML = `
+                <div class="rank">#${i+1}</div>
+                <img class="thumbnail" src="${img}">
+                <div class="game-info">
+                    <div class="game-name">${g.name}</div>
+                    <div class="time-played">${h}h ${m}m played</div>
+                </div>
+            `;
+
+            container.appendChild(card);
+        }
+
+    } catch(err){
+        console.log("Main error:", err);
     }
 }
 
