@@ -1,16 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Top Games Today</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Top Games Todayy</title>
 
 <style>
-body{background:#000;color:#fff;font-family:Arial;padding:20px}
-h1{text-align:center}
-.card{display:flex;gap:12px;align-items:center;background:#111;padding:12px;margin:10px 0;border-radius:12px}
-img{width:70px;height:70px;border-radius:10px}
-.rank{width:40px;font-weight:bold}
-.small{color:#aaa}
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    background:#000;
+    color:#fff;
+    padding:20px;
+}
+
+h1{
+    text-align:center;
+    font-size:30px;
+    margin-bottom:20px;
+}
+
+#games{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    max-width:900px;
+    margin:auto;
+}
+
+.card{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background:#111;
+    border:1px solid #1f1f1f;
+    border-radius:16px;
+    padding:14px;
+}
+
+.rank{
+    width:40px;
+    font-size:22px;
+    font-weight:700;
+    text-align:center;
+}
+
+img{
+    width:80px;
+    height:80px;
+    border-radius:12px;
+    object-fit:cover;
+    background:#222;
+}
+
+.info{
+    flex:1;
+}
+
+.name{
+    font-size:20px;
+    font-weight:700;
+    margin-bottom:5px;
+}
+
+.time{
+    font-size:15px;
+    color:#bbb;
+}
+
+@media(max-width:600px){
+    img{ width:65px; height:65px; }
+    .name{ font-size:18px; }
+    .time{ font-size:13px; }
+    .rank{ font-size:20px; }
+}
 </style>
 </head>
 
@@ -24,20 +93,22 @@ img{width:70px;height:70px;border-radius:10px}
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRo-SarpignS39lDSaIGsV13WyUJOURcyVaRP_mEqY6XfBxby9WA_XCf5AhXi8OcwHDiP4FLqBwMGKw/pub?gid=363986867&single=true&output=csv";
 
 function parseCSV(text){
-    return text.trim().split("\n").map(line =>
-        (line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [])
-        .map(x => x.replace(/"/g,"").trim())
-    );
+    return text
+        .trim()
+        .split("\n")
+        .map(line =>
+            line.split(",").map(x => x.replace(/"/g,"").trim())
+        );
 }
 
-function isToday(d){
-    const n = new Date();
-    return d.getDate()==n.getDate() &&
-           d.getMonth()==n.getMonth() &&
-           d.getFullYear()==n.getFullYear();
+function isToday(date){
+    const now = new Date();
+    return date.getDate() === now.getDate() &&
+           date.getMonth() === now.getMonth() &&
+           date.getFullYear() === now.getFullYear();
 }
 
-async function load(){
+async function loadGames(){
 
     const res = await fetch(CSV_URL);
     const text = await res.text();
@@ -48,48 +119,53 @@ async function load(){
 
     for(const r of rows){
 
-        const id = r[0];
-        const name = r[1];
-        const mins = Number(r[2])||0;
+        const id = r[0];       // universe id
+        const name = r[1];     // game name
+        const mins = Number(r[2]) || 0;
         const start = new Date(r[3]);
 
         if(!id || !name || isNaN(start)) continue;
         if(!isToday(start)) continue;
 
         if(!games[id]){
-            games[id]={name,mins:0};
+            games[id] = {
+                name,
+                mins: 0
+            };
         }
 
         games[id].mins += mins;
     }
 
     const sorted = Object.entries(games)
-        .sort((a,b)=>b[1].mins-a[1].mins);
+        .sort((a,b)=>b[1].mins - a[1].mins);
 
     const box = document.getElementById("games");
-    box.innerHTML="";
+    box.innerHTML = "";
 
     sorted.forEach(([id,g],i)=>{
 
-        const h=Math.floor(g.mins/60);
-        const m=g.mins%60;
+        const h = Math.floor(g.mins / 60);
+        const m = g.mins % 60;
 
-        const img=`https://thumbnails.roblox.com/v1/games/icons?universeIds=${id}&size=256x256&format=Png&isCircular=false`;
+        const img =
+        `https://thumbnails.roblox.com/v1/games/icons?universeIds=${id}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`;
 
         box.innerHTML += `
         <div class="card">
             <div class="rank">#${i+1}</div>
             <img src="${img}">
-            <div>
-                <div><b>${g.name}</b></div>
-                <div class="small">${h}h ${m}m</div>
+            <div class="info">
+                <div class="name">${g.name}</div>
+                <div class="time">${h}h ${m}m played today</div>
             </div>
-        </div>`;
+        </div>
+        `;
     });
 }
 
-load();
-setInterval(load,60000);
+loadGames();
+setInterval(loadGames, 60000);
 
 </script>
 
