@@ -96,7 +96,9 @@ function parseCSV(text){
     return text
         .trim()
         .split("\n")
-        .map(row => row.split(",").map(x => x.replace(/"/g,"").trim()));
+        .map(row =>
+            row.split(",").map(v => v.replace(/"/g,"").trim())
+        );
 }
 
 function isToday(date){
@@ -126,6 +128,7 @@ async function loadGames(){
 
             if(!universeId || !name || !start) continue;
 
+            // SAFE DATE PARSE (GitHub Pages safe)
             const date = new Date(start.replace(" ", "T"));
 
             if(isNaN(date.getTime())) continue;
@@ -147,7 +150,9 @@ async function loadGames(){
         const container = document.getElementById("games");
         container.innerHTML = "";
 
-        // ---- THUMBNAILS (FIXED API) ----
+        // -----------------------------
+        // BATCH THUMBNAILS (FIXED API)
+        // -----------------------------
         const ids = sorted.map(x => x[0]).join(",");
 
         let thumbnails = {};
@@ -166,9 +171,11 @@ async function loadGames(){
 
                     for(const t of thumbData.data){
 
-                        const id = String(t.targetId || t.universeId);
+                        const id =
+                            String(t.targetId || t.universeId);
 
-                        const img = t.imageUrl;
+                        const img =
+                            t.imageUrl || null;
 
                         if(id && img){
                             thumbnails[id] = img;
@@ -181,7 +188,9 @@ async function loadGames(){
             }
         }
 
-        // ---- RENDER ----
+        // -----------------------------
+        // RENDER
+        // -----------------------------
         for(let i=0;i<sorted.length;i++){
 
             const [id, g] = sorted[i];
