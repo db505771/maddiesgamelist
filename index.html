@@ -14,24 +14,28 @@ body{
 
 h1{
   text-align:center;
-  margin-bottom:10px;
 }
 
-/* TOP SPOTLIGHT */
-.top{
+/* FILTER BAR */
+.filters{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+button{
   background:#111;
-  padding:15px;
-  border-radius:15px;
-  text-align:center;
-  margin-bottom:20px;
+  color:#fff;
+  border:1px solid #333;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
 }
 
-.top img{
-  width:140px;
-  height:140px;
-  border-radius:15px;
-  margin-top:10px;
-  object-fit:cover;
+button.active{
+  background:#4da3ff;
+  border:none;
 }
 
 /* LIST */
@@ -61,64 +65,93 @@ img{
 .info{
   flex:1;
 }
-
-.bar{
-  height:6px;
-  background:#222;
-  border-radius:5px;
-  overflow:hidden;
-  margin-top:6px;
-}
-
-.fill{
-  height:100%;
-  background:#4da3ff;
-  transition: width 0.4s ease;
-}
 </style>
 </head>
 
 <body>
 
-<h1>🔥 Top Games Today</h1>
+<h1>Top games played</h1>
 
-<div id="top"></div>
-<div id="games">Loading...</div>
+<div class="filters">
+  <button onclick="setFilter('day')" class="active">Day</button>
+  <button onclick="setFilter('week')">Week</button>
+  <button onclick="setFilter('month')">Month</button>
+</div>
+
+<div id="games">...</div>
 
 <script>
 
 const API = "https://script.google.com/macros/s/AKfycby5tKKny4hqGyG--JQxP4IVe2C8WWGO6sMij6p66MdSmLFVDUn6TbeBbM2L51TdWia_/exec";
 
+let cache = [];
+let currentFilter = "day";
+
+// ⚡ INSTANT LOAD (cache first)
+if(localStorage.getItem("games_cache")){
+  cache = JSON.parse(localStorage.getItem("games_cache"));
+  render();
+}
+
 async function load(){
 
   const res = await fetch(API);
-  const data = await res.json();
+  cache = await res.json();
+
+  localStorage.setItem("games_cache", JSON.stringify(cache));
+
+  render();
+}
+
+function setFilter(type){
+  currentFilter = type;
+
+  document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+  event.target.classList.add("active");
+
+  render();
+}
+
+function filterData(data){
+
+  const now = new Date();
+
+  return data.filter(g=>{
+
+    const d = new Date(g.date || now);
+
+    if(currentFilter === "day"){
+      return true;
+    }
+
+    if(currentFilter === "week"){
+      const diff = (now - d) / (1000*60*60*24);
+      return diff <= 7;
+    }
+
+    if(currentFilter === "month"){
+      const diff = (now - d) / (1000*60*60*24);
+      return diff <= 30;
+    }
+
+    return true;
+  });
+}
+
+function render(){
+
+  const data = filterData(cache);
+
+  const box = document.getElementById("games");
 
   if(!data || data.length === 0){
-    document.getElementById("games").innerHTML = "No data yet.";
+    box.innerHTML = "No data.";
     return;
   }
 
-  const max = data[0].minutes;
-
-  // 🏆 TOP GAME
-  const top = data[0];
-  document.getElementById("top").innerHTML = `
-    <div class="top">
-      <h2>🏆 Top Game</h2>
-      <b>${top.name}</b><br>
-      ${Math.floor(top.minutes/60)}h ${top.minutes%60}m<br>
-      <img src="${top.image}">
-    </div>
-  `;
-
-  // 📊 LIST
-  const box = document.getElementById("games");
   box.innerHTML = "";
 
   data.forEach((g,i)=>{
-
-    const percent = (g.minutes / max) * 100;
 
     box.innerHTML += `
       <div class="card">
@@ -129,10 +162,6 @@ async function load(){
         <div class="info">
           <b>${g.name}</b><br>
           ${Math.floor(g.minutes/60)}h ${g.minutes%60}m
-
-          <div class="bar">
-            <div class="fill" style="width:${percent}%"></div>
-          </div>
         </div>
       </div>
     `;
