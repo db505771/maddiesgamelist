@@ -177,8 +177,13 @@ function getFilteredData(){
       (now - d) / (1000 * 60 * 60 * 24);
 
     if(currentFilter === "day"){
-      return diff <= 1;
-    }
+
+  return (
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear()
+  );
+}
 
     if(currentFilter === "week"){
       return diff <= 7;
