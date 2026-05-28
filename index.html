@@ -204,17 +204,42 @@ function render(){
 
   const filtered = getFilteredData();
 
-  if(filtered.length === 0){
+  // 🔥 MERGE SAME GAMES FOR WEEK/MONTH
+  let finalData = filtered;
+
+  if(currentFilter !== "day"){
+
+    const merged = {};
+
+    filtered.forEach(g => {
+
+      if(!merged[g.id]){
+
+        merged[g.id] = {
+          ...g,
+          minutes: 0
+        };
+      }
+
+      merged[g.id].minutes += g.minutes;
+    });
+
+    finalData = Object.values(merged);
+  }
+
+  if(finalData.length === 0){
+
     box.innerHTML =
       `<div class="loading">No games found.</div>`;
+
     return;
   }
 
-  filtered.sort((a,b)=>b.minutes-a.minutes);
+  finalData.sort((a,b)=>b.minutes-a.minutes);
 
   box.innerHTML = "";
 
-  filtered.forEach((g, i) => {
+  finalData.forEach((g, i) => {
 
     const hours = Math.floor(g.minutes / 60);
     const mins = g.minutes % 60;
